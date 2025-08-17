@@ -790,13 +790,9 @@ with st.container(border=True):
 
         st.write("When finish creating, then check from the API, we will see something like this: ")
         st.code("""
-
-                
                     [
                     " your kafka connectors "
                                              ]
-]
-
                 """)
 
         st.write("After that, crete cluster in your kafka manager, I set my port at :9000")
