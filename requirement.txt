@@ -1,4 +1,0 @@
-clickhouse-connect
-streamlit 
-pandas
-altair
