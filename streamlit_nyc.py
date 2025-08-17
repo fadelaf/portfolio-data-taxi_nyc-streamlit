@@ -932,6 +932,77 @@ with st.container(border = True):
                     PULocationID,
                     DOLocationID,
                     sum(total_trip) AS trip_count,
+
+				--------- Stream from temp_trip_fare --------------
+
+				-- 1. Table Kafka
+				CREATE TABLE default.taxi_trip_fare
+				(
+				   pickup_hour UInt64,
+				   avg_fare_per_km Float64,
+				   avg_tip_amount Float64,
+				   short_trip_count UInt64,
+				   long_trip_count UInt64
+				) ENGINE = Kafka
+				SETTINGS
+				    kafka_broker_list = 'kafka-kafka-1:9092',
+				    kafka_topic_list = 'etl.public.temp_trip_fare',
+				    kafka_group_name = 'clickhouse_consumer_4',
+				    kafka_format = 'JSONEachRow';
+				
+				-- 2. Table MergeTree
+				CREATE TABLE default.taxi_trip_fare_f
+				(
+				   pickup_hour UInt64,
+				   avg_fare_per_km Float64,
+				   avg_tip_amount Float64,
+				   short_trip_count UInt64,
+				   long_trip_count UInt64
+				) ENGINE = MergeTree()
+				ORDER BY pickup_hour;
+				
+				-- 3. MV
+				CREATE MATERIALIZED VIEW default.taxi_trip_fare_mv
+				TO default.taxi_trip_fare_f
+				AS
+				SELECT *
+				FROM default.taxi_trip_fare;
+				
+				--------- Stream from temp_table --------------
+				
+				-- 1. Table Kafka
+				CREATE TABLE default.taxi_trip_daily_hourly
+				(
+				pickup_date Date,
+				pickup_hour UInt64,
+				pickup_days	String,
+				count_trip UInt64
+				) ENGINE = Kafka
+				SETTINGS
+				    kafka_broker_list = 'kafka-kafka-1:9092',
+				    kafka_topic_list = 'etl.public.temp_table',
+				    kafka_group_name = 'clickhouse_consumer_5',
+				    kafka_format = 'JSONEachRow';
+				
+				-- 2. Table MergeTree daily
+				CREATE TABLE default.taxi_trip_daily
+				(
+				   pickup_date Date,
+				   pickup_days String,
+				   total_trip UInt64,
+				) ENGINE = MergeTree()
+				
+				-- 3. MV
+				CREATE MATERIALIZED VIEW default.taxi_trip_daily_mv
+				TO default.taxi_trip_daily
+				AS
+				SELECT 
+				     pickup_date,
+				     pickup_days,
+				     sum(count_trip) as total_trip
+				     from taxi_trip_daily_hourly
+				     group by pickup_date,pickup_days
+				     order by pickup_date asc;
                 """
         
         st.code(code)
